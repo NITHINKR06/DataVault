@@ -13,6 +13,11 @@ type DataVaultCallLogModule = {
   getCallLogs: (limit: number) => Promise<NativeCallLogItem[]>;
 };
 
+export function isNativeCallLogModuleAvailable(): boolean {
+  const moduleRef = NativeModules.DataVaultCallLogModule as DataVaultCallLogModule | undefined;
+  return Platform.OS === 'android' && !!moduleRef?.getCallLogs;
+}
+
 // Android call type constants
 const CALL_TYPE: Record<number, string> = {
   1: 'incoming',
@@ -33,14 +38,24 @@ const CALL_TYPE: Record<number, string> = {
 export async function readCallLogs(sessionId: number, limit = 200): Promise<CallData[]> {
   if (Platform.OS !== 'android') return [];
 
-  try {
-    // Method 1: Try via expo-contacts style content resolver
-    const calls = await readViaContentResolver(sessionId, limit);
-    return calls;
-  } catch (e) {
-    console.warn('Call log read error:', e);
-    return [];
+  const maxAttempts = 3;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      const calls = await readViaContentResolver(sessionId, limit);
+      if (calls.length > 0) {
+        return calls;
+      }
+    } catch (e) {
+      console.warn('Call log read error:', e);
+    }
+
+    if (attempt < maxAttempts) {
+      await new Promise((resolve) => setTimeout(resolve, 1200));
+    }
   }
+
+  return [];
 }
 
 async function readViaContentResolver(sessionId: number, limit: number): Promise<CallData[]> {

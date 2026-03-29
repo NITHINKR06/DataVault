@@ -33,7 +33,7 @@ import {
   syncCapturedNotificationsFromNative,
 } from '../src/services/notificationCapture';
 import Constants from 'expo-constants';
-import { readCallLogs } from '../src/services/callLog';
+import { readCallLogs, isNativeCallLogModuleAvailable } from '../src/services/callLog';
 import { openNotificationListenerSettings } from '../src/services/permissions';
 import { exportDataAsJson } from '../src/services/exportService';
 
@@ -312,9 +312,27 @@ export default function HomeScreen() {
 
       // Snapshot call logs
       if (permCall) {
+        if (!isNativeCallLogModuleAvailable()) {
+          Alert.alert(
+            'Call Capture Not Ready',
+            'Native call-log module not found in this app build. Rebuild and reinstall using npx expo run:android.'
+          );
+        }
+
         const calls = await readCallLogs(currentSessionId, 100);
-        for (const call of calls) {
+        const currentSession = sessions.find((s) => s.id === currentSessionId);
+        const sessionStart = currentSession?.start_time ?? 0;
+        const sessionCalls = calls.filter((call) => call.date >= sessionStart - 5000);
+
+        for (const call of sessionCalls) {
           await insertCallLog(call);
+        }
+
+        if (sessionCalls.length === 0) {
+          Alert.alert(
+            'No Calls Captured',
+            'No call-log entries were found for this session window. Wait a few seconds after a call ends, then stop again.'
+          );
         }
       }
 
