@@ -36,7 +36,8 @@
           "icon": "./assets/icon.png",
           "color": "#5B6BF8"
         }
-      ]
+      ],
+      "expo-sqlite"
     ],
     "scheme": "datavault",
     "extra": {

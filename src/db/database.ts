@@ -1,45 +1,41 @@
-import * as SQLite from 'expo-sqlite/legacy';
+import * as SQLite from 'expo-sqlite';
 
-// expo-sqlite v13 (legacy API) — works with Expo 51
-const db = SQLite.openDatabase('datavault.db');
+const db = SQLite.openDatabaseSync('datavault.db');
 
 // ── Init schema ───────────────────────────────────────
 
 export function initDatabase(): Promise<void> {
-  return new Promise((resolve, reject) => {
-    db.transaction(tx => {
-      tx.executeSql(`CREATE TABLE IF NOT EXISTS sessions (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        start_time INTEGER NOT NULL,
-        end_time INTEGER,
-        start_datetime TEXT NOT NULL,
-        end_datetime TEXT,
-        is_active INTEGER DEFAULT 1
-      )`);
-      tx.executeSql(`CREATE TABLE IF NOT EXISTS notifications (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        session_id INTEGER,
-        source TEXT,
-        sender TEXT,
-        preview TEXT,
-        timestamp INTEGER,
-        datetime TEXT
-      )`);
-      tx.executeSql(`CREATE TABLE IF NOT EXISTS call_logs (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        session_id INTEGER,
-        number TEXT,
-        name TEXT,
-        date INTEGER,
-        datetime TEXT,
-        duration INTEGER,
-        type TEXT
-      )`);
-    },
-    (err) => reject(err),
-    () => resolve()
+  return db.execAsync(`
+    CREATE TABLE IF NOT EXISTS sessions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      start_time INTEGER NOT NULL,
+      end_time INTEGER,
+      start_datetime TEXT NOT NULL,
+      end_datetime TEXT,
+      is_active INTEGER DEFAULT 1
     );
-  });
+
+    CREATE TABLE IF NOT EXISTS notifications (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      session_id INTEGER,
+      source TEXT,
+      sender TEXT,
+      preview TEXT,
+      timestamp INTEGER,
+      datetime TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS call_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      session_id INTEGER,
+      number TEXT,
+      name TEXT,
+      date INTEGER,
+      datetime TEXT,
+      duration INTEGER,
+      type TEXT
+    );
+  `);
 }
 
 // ── Helpers ───────────────────────────────────────────
@@ -50,32 +46,21 @@ export function formatDateTime(ts: number): string {
   return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
 }
 
-function runSql(sql: string, args: any[] = []): Promise<SQLite.SQLResultSet> {
-  return new Promise((resolve, reject) => {
-    db.transaction(tx => {
-      tx.executeSql(sql, args,
-        (_, result) => resolve(result),
-        (_, err) => { reject(err); return false; }
-      );
-    });
-  });
+type RunResult = {
+  insertId?: number;
+  rowsAffected: number;
+};
+
+async function runSql(sql: string, args: unknown[] = []): Promise<RunResult> {
+  const result = await db.runAsync(sql, ...(args as []));
+  return {
+    insertId: result.lastInsertRowId,
+    rowsAffected: result.changes,
+  };
 }
 
-function querySql<T>(sql: string, args: any[] = []): Promise<T[]> {
-  return new Promise((resolve, reject) => {
-    db.transaction(tx => {
-      tx.executeSql(sql, args,
-        (_, result) => {
-          const rows: T[] = [];
-          for (let i = 0; i < result.rows.length; i++) {
-            rows.push(result.rows.item(i));
-          }
-          resolve(rows);
-        },
-        (_, err) => { reject(err); return false; }
-      );
-    });
-  });
+function querySql<T>(sql: string, args: unknown[] = []): Promise<T[]> {
+  return db.getAllAsync<T>(sql, ...(args as []));
 }
 
 // ── Sessions ──────────────────────────────────────────
