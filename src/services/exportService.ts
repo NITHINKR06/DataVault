@@ -1,4 +1,4 @@
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { exportAll } from '../db/database';
 
@@ -15,10 +15,9 @@ export async function exportDataAsJson(): Promise<string> {
   const path = FileSystem.documentDirectory + filename;
 
   await FileSystem.writeAsStringAsync(path, json, {
-    encoding: 'utf8' as any,
+    encoding: FileSystem.EncodingType.UTF8,
   });
 
-  // Share via Android share sheet
   const canShare = await Sharing.isAvailableAsync();
   if (canShare) {
     await Sharing.shareAsync(path, {
@@ -29,10 +28,4 @@ export async function exportDataAsJson(): Promise<string> {
   }
 
   return path;
-}
-
-export function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return bytes + ' B';
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
 }
