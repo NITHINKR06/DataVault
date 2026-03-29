@@ -41,7 +41,7 @@ async function readViaContentResolver(sessionId: number, limit: number): Promise
       if (CallLogModule && CallLogModule.getCallLogs) {
         CallLogModule.getCallLogs(limit, (error: any, logs: any[]) => {
           if (error || !logs) {
-            resolve(generateMockCallLogs(sessionId));
+            resolve([]);
             return;
           }
           const result: CallData[] = logs.map(log => ({
@@ -56,28 +56,11 @@ async function readViaContentResolver(sessionId: number, limit: number): Promise
           resolve(result);
         });
       } else {
-        // Module not available - return mock for testing UI
-        resolve(generateMockCallLogs(sessionId));
+        // Native call-log module missing: no real call data available.
+        resolve([]);
       }
     } catch {
-      resolve(generateMockCallLogs(sessionId));
+      resolve([]);
     }
   });
-}
-
-// Generates sample data so the UI works even before native module is wired up
-function generateMockCallLogs(sessionId: number): CallData[] {
-  const types = ['incoming', 'outgoing', 'missed', 'rejected'];
-  const names = ['', '', 'Home', '', 'Office'];
-  const now = Date.now();
-  
-  return Array.from({ length: 5 }, (_, i) => ({
-    session_id: sessionId,
-    number: `+91${Math.floor(9000000000 + Math.random() * 999999999)}`,
-    name: names[i % names.length],
-    date: now - i * 3600000,
-    datetime: formatDateTime(now - i * 3600000),
-    duration: Math.floor(Math.random() * 300),
-    type: types[i % types.length],
-  }));
 }

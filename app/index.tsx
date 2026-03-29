@@ -19,6 +19,8 @@ import {
   endSession,
   getSessions,
   insertCallLog,
+  getCallLogs,
+  getNotifications,
   Session,
   formatDateTime,
 } from '../src/db/database';
@@ -301,6 +303,17 @@ export default function HomeScreen() {
       Alert.alert('No Data', 'Start and stop a session first to collect data.');
       return;
     }
+
+    const [notifications, callLogs] = await Promise.all([
+      getNotifications(),
+      getCallLogs(),
+    ]);
+
+    if (notifications.length === 0 && callLogs.length === 0) {
+      Alert.alert('No Data', 'No messages or call logs captured yet.');
+      return;
+    }
+
     setExporting(true);
     try {
       await exportDataAsJson();
