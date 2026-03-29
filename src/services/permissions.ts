@@ -1,4 +1,8 @@
 import { Alert, Linking, NativeModules, Platform } from 'react-native';
+import {
+  isNativeNotificationListenerEnabled,
+  openNativeNotificationListenerSettings,
+} from './nativeNotificationListener';
 
 // ─────────────────────────────────────────────────────
 //  Android permission constants
@@ -52,26 +56,7 @@ export async function checkCallLogPermission(): Promise<boolean> {
 export async function checkNotificationListenerEnabled(): Promise<boolean> {
   if (Platform.OS !== 'android') return false;
   try {
-    // Uses Settings.Secure to check enabled_notification_listeners
-    const { NativeModules, NativeEventEmitter } = require('react-native');
-    
-    // Fallback: try via IntentLauncher check
-    // We check by attempting to read the setting
-    const enabled = await new Promise<boolean>((resolve) => {
-      try {
-        const { UIManager } = require('react-native');
-        // Direct check via Android Settings
-        const ReactNativeAndroidNative = NativeModules.AndroidSettings;
-        if (ReactNativeAndroidNative) {
-          resolve(false);
-        } else {
-          resolve(false);
-        }
-      } catch {
-        resolve(false);
-      }
-    });
-    return enabled;
+    return await isNativeNotificationListenerEnabled();
   } catch {
     return false;
   }
@@ -79,10 +64,7 @@ export async function checkNotificationListenerEnabled(): Promise<boolean> {
 
 export async function openNotificationListenerSettings(): Promise<void> {
   try {
-    const IntentLauncher = require('expo-intent-launcher');
-    await IntentLauncher.startActivityAsync(
-      'android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS'
-    );
+    openNativeNotificationListenerSettings();
   } catch (e) {
     // Fallback
     Linking.openSettings();

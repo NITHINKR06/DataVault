@@ -86,6 +86,13 @@ export async function getSessions(): Promise<Session[]> {
   return querySql<Session>('SELECT * FROM sessions ORDER BY start_time DESC');
 }
 
+export async function getActiveSession(): Promise<Session | null> {
+  const rows = await querySql<Session>(
+    'SELECT * FROM sessions WHERE is_active=1 ORDER BY start_time DESC LIMIT 1'
+  );
+  return rows.length > 0 ? rows[0] : null;
+}
+
 // ── Notifications ─────────────────────────────────────
 
 export async function insertNotification(data: NotifData): Promise<void> {

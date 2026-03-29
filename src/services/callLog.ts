@@ -1,6 +1,18 @@
 import { Platform, NativeModules } from 'react-native';
 import { formatDateTime, CallData } from '../db/database';
 
+type NativeCallLogItem = {
+  number?: string;
+  name?: string;
+  date?: string;
+  duration?: string;
+  type?: string;
+};
+
+type DataVaultCallLogModule = {
+  getCallLogs: (limit: number) => Promise<NativeCallLogItem[]>;
+};
+
 // Android call type constants
 const CALL_TYPE: Record<number, string> = {
   1: 'incoming',
@@ -32,35 +44,27 @@ export async function readCallLogs(sessionId: number, limit = 200): Promise<Call
 }
 
 async function readViaContentResolver(sessionId: number, limit: number): Promise<CallData[]> {
-  return new Promise((resolve) => {
-    try {
-      // React Native exposes ContentResolver through a native module
-      // In Expo bare workflow this works after permissions are granted
-      const { CallLogModule } = NativeModules;
-      
-      if (CallLogModule && CallLogModule.getCallLogs) {
-        CallLogModule.getCallLogs(limit, (error: any, logs: any[]) => {
-          if (error || !logs) {
-            resolve([]);
-            return;
-          }
-          const result: CallData[] = logs.map(log => ({
-            session_id: sessionId,
-            number: log.number || '',
-            name: log.name || '',
-            date: parseInt(log.date) || Date.now(),
-            datetime: formatDateTime(parseInt(log.date) || Date.now()),
-            duration: parseInt(log.duration) || 0,
-            type: CALL_TYPE[parseInt(log.type)] || 'unknown',
-          }));
-          resolve(result);
-        });
-      } else {
-        // Native call-log module missing: no real call data available.
-        resolve([]);
-      }
-    } catch {
-      resolve([]);
+  try {
+    const moduleRef = NativeModules.DataVaultCallLogModule as DataVaultCallLogModule | undefined;
+    if (!moduleRef?.getCallLogs) {
+      return [];
     }
-  });
+
+    const logs = await moduleRef.getCallLogs(limit);
+    return logs.map((log) => {
+      const ts = parseInt(log.date || '') || Date.now();
+      const typeNum = parseInt(log.type || '') || 0;
+      return {
+        session_id: sessionId,
+        number: log.number || '',
+        name: log.name || '',
+        date: ts,
+        datetime: formatDateTime(ts),
+        duration: parseInt(log.duration || '') || 0,
+        type: CALL_TYPE[typeNum] || 'unknown',
+      };
+    });
+  } catch {
+    return [];
+  }
 }

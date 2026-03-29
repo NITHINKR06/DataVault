@@ -18,6 +18,7 @@ import {
   startSession,
   endSession,
   getSessions,
+  getActiveSession,
   insertCallLog,
   getCallLogs,
   getNotifications,
@@ -29,6 +30,7 @@ import {
   stopCapturingNotifications,
   requestNotificationPermission,
   checkNotificationPermission,
+  syncCapturedNotificationsFromNative,
 } from '../src/services/notificationCapture';
 import Constants from 'expo-constants';
 import { readCallLogs } from '../src/services/callLog';
@@ -171,8 +173,29 @@ export default function HomeScreen() {
     ]).start();
 
     checkPermissions();
-    loadSessions();
+    restoreAppState();
   }, []);
+
+  const restoreAppState = useCallback(async () => {
+    await checkPermissions();
+
+    const imported = await syncCapturedNotificationsFromNative();
+    if (imported > 0) {
+      setLiveCount(imported);
+    }
+
+    const activeSession = await getActiveSession();
+    if (activeSession) {
+      setCapturing(true);
+      setCurrentSessionId(activeSession.id);
+      startCapturingNotifications(activeSession.id);
+    } else {
+      setCapturing(false);
+      setCurrentSessionId(-1);
+    }
+
+    await loadSessions();
+  }, [checkPermissions, loadSessions]);
 
   const checkPermissions = useCallback(async () => {
     if (Platform.OS !== 'android') return;
@@ -298,6 +321,7 @@ export default function HomeScreen() {
       await endSession(currentSessionId);
       setCapturing(false);
       setCurrentSessionId(-1);
+      setLiveCount(0);
       await loadSessions();
     } catch (e: any) {
       Alert.alert('Error', e?.message ?? 'Could not stop');
@@ -347,8 +371,13 @@ export default function HomeScreen() {
           onPress: async () => {
             const { clearAll } = await import('../src/db/database');
             await clearAll();
+            stopCapturingNotifications();
+            setCapturing(false);
+            setCurrentSessionId(-1);
             setSessions([]);
             setLiveCount(0);
+            setMessageCount(0);
+            setCallCount(0);
           },
         },
         { text: 'Cancel', style: 'cancel' },
