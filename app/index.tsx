@@ -316,9 +316,12 @@ export default function HomeScreen() {
           console.warn('[DataVault] DataVaultCallLogModule not linked in this build.');
         } else {
           const calls = await readCallLogs(currentSessionId, 100);
-          const currentSession = sessions.find((s) => s.id === currentSessionId);
-          const sessionStart = currentSession?.start_time ?? 0;
-          const sessionCalls = calls.filter((call) => call.date >= sessionStart - 10000);
+          // Fetch session directly from DB — don't trust stale React state
+          const activeSession = await getActiveSession();
+          const sessionStart = activeSession?.start_time ?? 0;
+          const sessionCalls = sessionStart > 0
+            ? calls.filter((call) => call.date >= sessionStart - 10000)
+            : calls; // if sessionStart unknown, save all calls
 
           for (const call of sessionCalls) {
             await insertCallLog(call);
@@ -347,16 +350,6 @@ export default function HomeScreen() {
   const handleExport = async () => {
     if (sessions.length === 0) {
       Alert.alert('No Data', 'Start and stop a session first to collect data.');
-      return;
-    }
-
-    const [notifications, callLogs] = await Promise.all([
-      getNotifications(),
-      getCallLogs(),
-    ]);
-
-    if (notifications.length === 0 && callLogs.length === 0) {
-      Alert.alert('No Data', 'No messages or call logs captured yet.');
       return;
     }
 
