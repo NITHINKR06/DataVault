@@ -158,6 +158,8 @@ export default function HomeScreen() {
   const [permNotif, setPermNotif] = useState(false);
   const [liveCount, setLiveCount] = useState(0);
   const [currentSessionId, setCurrentSessionId] = useState<number>(-1);
+  const [messageCount, setMessageCount] = useState(0);
+  const [callCount, setCallCount] = useState(0);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
@@ -191,8 +193,14 @@ export default function HomeScreen() {
 
   const loadSessions = useCallback(async () => {
     try {
-      const list = await getSessions();
+      const [list, notifications, calls] = await Promise.all([
+        getSessions(),
+        getNotifications(),
+        getCallLogs(),
+      ]);
       setSessions(list);
+      setMessageCount(notifications.length);
+      setCallCount(calls.length);
     } catch (e) {
       console.warn('loadSessions error', e);
     }
@@ -435,6 +443,29 @@ export default function HomeScreen() {
           </View>
         )}
 
+        {/* ── Capture summary ── */}
+        <View style={styles.card}>
+          <Text style={styles.cardLabel}>CAPTURED DATA</Text>
+          {messageCount === 0 && callCount === 0 ? (
+            <View style={styles.summaryEmpty}>
+              <Text style={styles.summaryEmptyText}>No data</Text>
+              <Text style={styles.summaryEmptySubText}>No messages or call logs captured</Text>
+            </View>
+          ) : (
+            <View style={styles.summaryRow}>
+              <View style={styles.summaryItem}>
+                <Text style={styles.summaryLabel}>Messages</Text>
+                <Text style={styles.summaryValue}>{messageCount}</Text>
+              </View>
+              <View style={styles.summaryDivider} />
+              <View style={styles.summaryItem}>
+                <Text style={styles.summaryLabel}>Calls</Text>
+                <Text style={styles.summaryValue}>{callCount}</Text>
+              </View>
+            </View>
+          )}
+        </View>
+
         {/* ── Sessions list ── */}
         <View style={styles.card}>
           <View style={styles.cardLabelRow}>
@@ -538,6 +569,16 @@ const styles = StyleSheet.create({
   liveText: { flex: 1, color: C.green, fontSize: 14, fontWeight: '600' },
   countPill: { backgroundColor: C.green, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 3 },
   countPillText: { color: '#061209', fontSize: 11, fontWeight: '800' },
+
+  // Capture summary
+  summaryRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.bg, borderRadius: 12, borderWidth: 1, borderColor: C.border },
+  summaryItem: { flex: 1, paddingVertical: 14, paddingHorizontal: 12, alignItems: 'center' },
+  summaryLabel: { color: C.sub, fontSize: 12, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 1 },
+  summaryValue: { color: C.text, fontSize: 22, fontWeight: '800' },
+  summaryDivider: { width: 1, alignSelf: 'stretch', backgroundColor: C.border },
+  summaryEmpty: { alignItems: 'center', paddingVertical: 18, backgroundColor: C.bg, borderRadius: 12, borderWidth: 1, borderColor: C.border },
+  summaryEmptyText: { color: C.textDim, fontSize: 16, fontWeight: '700' },
+  summaryEmptySubText: { color: C.sub, fontSize: 12, marginTop: 4 },
 
   // Session cards
   sessionCard: { backgroundColor: C.bg, borderRadius: 12, padding: 14, borderWidth: 1, borderColor: C.border, marginBottom: 10 },
