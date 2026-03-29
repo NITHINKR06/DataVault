@@ -38,7 +38,8 @@
           "color": "#5B6BF8"
         }
       ],
-      "expo-sqlite"
+      "expo-sqlite",
+      "./plugins/withCallLogModule.js"
     ],
     "scheme": "datavault",
     "extra": {

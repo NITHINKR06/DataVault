@@ -166,37 +166,6 @@ export default function HomeScreen() {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
 
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
-      Animated.timing(slideAnim, { toValue: 0, duration: 500, easing: Easing.out(Easing.ease), useNativeDriver: true }),
-    ]).start();
-
-    checkPermissions();
-    restoreAppState();
-  }, []);
-
-  const restoreAppState = useCallback(async () => {
-    await checkPermissions();
-
-    const imported = await syncCapturedNotificationsFromNative();
-    if (imported > 0) {
-      setLiveCount(imported);
-    }
-
-    const activeSession = await getActiveSession();
-    if (activeSession) {
-      setCapturing(true);
-      setCurrentSessionId(activeSession.id);
-      startCapturingNotifications(activeSession.id);
-    } else {
-      setCapturing(false);
-      setCurrentSessionId(-1);
-    }
-
-    await loadSessions();
-  }, [checkPermissions, loadSessions]);
-
   const checkPermissions = useCallback(async () => {
     if (Platform.OS !== 'android') return;
     try {
@@ -227,6 +196,37 @@ export default function HomeScreen() {
     } catch (e) {
       console.warn('loadSessions error', e);
     }
+  }, []);
+
+  const restoreAppState = useCallback(async () => {
+    await checkPermissions();
+
+    const imported = await syncCapturedNotificationsFromNative();
+    if (imported > 0) {
+      setLiveCount(imported);
+    }
+
+    const activeSession = await getActiveSession();
+    if (activeSession) {
+      setCapturing(true);
+      setCurrentSessionId(activeSession.id);
+      startCapturingNotifications(activeSession.id);
+    } else {
+      setCapturing(false);
+      setCurrentSessionId(-1);
+    }
+
+    await loadSessions();
+  }, [checkPermissions, loadSessions]);
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
+      Animated.timing(slideAnim, { toValue: 0, duration: 500, easing: Easing.out(Easing.ease), useNativeDriver: true }),
+    ]).start();
+
+    checkPermissions();
+    restoreAppState();
   }, []);
 
   const handleGrantCallLog = async () => {
@@ -313,29 +313,25 @@ export default function HomeScreen() {
       // Snapshot call logs
       if (permCall) {
         if (!isNativeCallLogModuleAvailable()) {
-          Alert.alert(
-            'Call Capture Not Ready',
-            'Native call-log module not found in this app build. Rebuild and reinstall using npx expo run:android.'
-          );
-        }
+          console.warn('[DataVault] DataVaultCallLogModule not linked in this build.');
+        } else {
+          const calls = await readCallLogs(currentSessionId, 100);
+          const currentSession = sessions.find((s) => s.id === currentSessionId);
+          const sessionStart = currentSession?.start_time ?? 0;
+          const sessionCalls = calls.filter((call) => call.date >= sessionStart - 10000);
 
-        const calls = await readCallLogs(currentSessionId, 100);
-        const currentSession = sessions.find((s) => s.id === currentSessionId);
-        const sessionStart = currentSession?.start_time ?? 0;
-        const sessionCalls = calls.filter((call) => call.date >= sessionStart - 5000);
+          for (const call of sessionCalls) {
+            await insertCallLog(call);
+          }
 
-        for (const call of sessionCalls) {
-          await insertCallLog(call);
-        }
-
-        if (sessionCalls.length === 0) {
-          Alert.alert(
-            'No Calls Captured',
-            'No call-log entries were found for this session window. Wait a few seconds after a call ends, then stop again.'
-          );
+          if (sessionCalls.length === 0) {
+            Alert.alert(
+              'No Calls in This Session',
+              'No calls were found in this session window. If a call just ended, wait 5–10 seconds and tap Stop again.'
+            );
+          }
         }
       }
-
       await endSession(currentSessionId);
       setCapturing(false);
       setCurrentSessionId(-1);

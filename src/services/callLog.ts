@@ -14,8 +14,9 @@ type DataVaultCallLogModule = {
 };
 
 export function isNativeCallLogModuleAvailable(): boolean {
-  const moduleRef = NativeModules.DataVaultCallLogModule as DataVaultCallLogModule | undefined;
-  return Platform.OS === 'android' && !!moduleRef?.getCallLogs;
+  if (Platform.OS !== 'android') return false;
+  const mod = NativeModules.DataVaultCallLogModule as DataVaultCallLogModule | undefined;
+  return typeof mod?.getCallLogs === 'function';
 }
 
 // Android call type constants
