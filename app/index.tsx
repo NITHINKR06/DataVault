@@ -28,6 +28,7 @@ import {
   requestNotificationPermission,
   checkNotificationPermission,
 } from '../src/services/notificationCapture';
+import Constants from 'expo-constants';
 import { readCallLogs } from '../src/services/callLog';
 import { openNotificationListenerSettings } from '../src/services/permissions';
 import { exportDataAsJson } from '../src/services/exportService';
@@ -144,6 +145,9 @@ function PermRow({
 
 // ── Main screen ──────────────────────────────────────
 export default function HomeScreen() {
+  const isExpoGo = Constants.appOwnership === 'expo';
+  const notificationSupported = Platform.OS === 'android' && !isExpoGo;
+
   const [capturing, setCapturing] = useState(false);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(false);
@@ -174,10 +178,14 @@ export default function HomeScreen() {
         PermissionsAndroid.PERMISSIONS.READ_CALL_LOG
       );
       setPermCall(callOk);
-      const notifOk = await checkNotificationPermission();
-      setPermNotif(notifOk);
+      if (notificationSupported) {
+        const notifOk = await checkNotificationPermission();
+        setPermNotif(notifOk);
+      } else {
+        setPermNotif(true);
+      }
     } catch {}
-  }, []);
+  }, [notificationSupported]);
 
   const loadSessions = useCallback(async () => {
     try {
@@ -211,6 +219,15 @@ export default function HomeScreen() {
   };
 
   const handleGrantNotif = async () => {
+    if (!notificationSupported) {
+      Alert.alert(
+        'Not Available in Expo Go',
+        'Notification capture requires a development build. You can still test call-log features in Expo Go.'
+      );
+      setPermNotif(true);
+      return;
+    }
+
     // First try standard notification permission
     const granted = await requestNotificationPermission();
     setPermNotif(granted);
@@ -235,7 +252,7 @@ export default function HomeScreen() {
   };
 
   const handleStart = async () => {
-    if (!permCall || !permNotif) {
+    if (!permCall || (notificationSupported && !permNotif)) {
       Alert.alert('Access Required', 'Please grant both permissions before starting.');
       return;
     }
