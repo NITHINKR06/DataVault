@@ -6,6 +6,8 @@
     "start": "expo start",
     "android": "expo run:android",
     "build:apk": "eas build --platform android --profile preview",
+    "build:internal": "eas build --platform android --profile preview",
+    "build:prod": "eas build --platform android --profile production",
     "ios": "expo run:ios"
   },
   "dependencies": {
