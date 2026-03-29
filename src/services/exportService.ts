@@ -15,7 +15,7 @@ export async function exportDataAsJson(): Promise<string> {
   const path = FileSystem.documentDirectory + filename;
 
   await FileSystem.writeAsStringAsync(path, json, {
-    encoding: FileSystem.EncodingType.UTF8,
+    encoding: 'utf8' as any,
   });
 
   // Share via Android share sheet

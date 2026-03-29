@@ -29,6 +29,8 @@
     },
     "plugins": [
       "expo-router",
+      "expo-task-manager",
+      "expo-background-fetch",
       [
         "expo-notifications",
         {
